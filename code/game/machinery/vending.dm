@@ -345,50 +345,102 @@
 	else
 		icon_state = initial(icon_state)
 
+// /obj/machinery/vending/attack_hand(mob/user)
+// 	if(..())
+// 		return
+// 	tgui_interact(user)
+
 /obj/machinery/vending/ui_interact(mob/user)
-	if((world.time < electrified_until || electrified_until < 0) && !issilicon(user) && !isobserver(user))
-		if(shock(user, 100))
-			return
+	tgui_interact(user)
 
-	var/vendorname = name  //import the machine's name
-
-	if(currently_vending)
-		var/dat
-		dat += "<b>You have selected [currently_vending.product_name].<br>Please swipe your ID to pay for the article.</b><br>"
-		dat += "<a href='byond://?src=\ref[src];cancel_buying=1'>Cancel</a>"
-		var/datum/browser/popup = new(user, "window=vending", "[vendorname]", 450, 600)
-		popup.set_content(dat)
-		popup.open()
+/obj/machinery/vending/tgui_act(action, params)
+	.=..()
+	if(.)
 		return
 
-	var/dat
-	dat += "<div class='Section__title'>Products</div>"
-	dat += "<div class='Section'>"
+	switch(action)
+		if("purchase")
+			var/datum/data/vending_product/good
+			for(var/datum/data/vending_product/R in get_all_product_records())
+				if(R.product_name == params["name"])
+					good = R
+					R.amount--
+					break
 
-	if (product_records.len == 0)
-		dat += "<span class='red'>No product loaded!</span>"
-	else
-		dat += "<table>"
-		dat += print_recors(product_records)
-		if(extended_inventory)
-			dat += print_recors(hidden_records)
-		if(coin)
-			dat += print_recors(coin_records)
-		if(emagged)
-			dat += print_recors(emag_records)
-		dat += "</table>"
-	dat += "</div>"
+			new good.product_path(get_turf(src))
+			return
 
-	if (premium.len > 0)
-		dat += "<b>Coin slot:</b> [coin ? coin : "No coin inserted"] <a href='byond://?src=\ref[src];remove_coin=1'>Remove</A><br>"
+/obj/machinery/vending/tgui_interact(mob/user, datum/tgui/ui = null)
 
-	if (ewallet)
-		dat += "<b>Charge card's credits:</b> [ewallet ? ewallet.worth : "No charge card inserted"] (<a href='byond://?src=\ref[src];remove_ewallet=1'>Remove</A>)<br><br>"
+	var/vendorname = name
 
-	var/datum/browser/popup = new(user, "window=vending", "[vendorname]", 450, 600)
-	popup.add_stylesheet(get_asset_datum(/datum/asset/spritesheet/vending))
-	popup.set_content(dat)
-	popup.open()
+	// Open the window
+	ui = SStgui.try_update_ui(user, src, ui)
+	if(!ui)
+		ui = new(user, src, "Vending", vendorname)
+		ui.set_autoupdate(FALSE)
+		ui.open()
+
+	// var/vendorname = name  //import the machine's name
+
+	// if(currently_vending)
+	// 	var/dat
+	// 	dat += "<b>You have selected [currently_vending.product_name].<br>Please swipe your ID to pay for the article.</b><br>"
+	// 	dat += "<a href='byond://?src=\ref[src];cancel_buying=1'>Cancel</a>"
+	// 	var/datum/browser/popup = new(user, "window=vending", "[vendorname]", 450, 600)
+	// 	popup.set_content(dat)
+	// 	popup.open()
+	// 	return
+
+	// var/dat
+	// dat += "<div class='Section__title'>Products</div>"
+	// dat += "<div class='Section'>"
+
+	// if (product_records.len == 0)
+	// 	dat += "<span class='red'>No product loaded!</span>"
+	// else
+	// 	dat += "<table>"
+	// 	dat += print_recors(product_records)
+	// 	if(extended_inventory)
+	// 		dat += print_recors(hidden_records)
+	// 	if(coin)
+	// 		dat += print_recors(coin_records)
+	// 	if(emagged)
+	// 		dat += print_recors(emag_records)
+	// 	dat += "</table>"
+	// dat += "</div>"
+
+	// if (premium.len > 0)
+	// 	dat += "<b>Coin slot:</b> [coin ? coin : "No coin inserted"] <a href='byond://?src=\ref[src];remove_coin=1'>Remove</A><br>"
+
+	// if (ewallet)
+	// 	dat += "<b>Charge card's credits:</b> [ewallet ? ewallet.worth : "No charge card inserted"] (<a href='byond://?src=\ref[src];remove_ewallet=1'>Remove</A>)<br><br>"
+
+	// var/datum/browser/popup = new(user, "window=vending", "[vendorname]", 450, 600)
+	// popup.add_stylesheet(get_asset_datum(/datum/asset/spritesheet/vending))
+	// popup.set_content(dat)
+	// popup.open()
+/obj/machinery/vending/proc/get_all_product_records()
+	return (product_records + hidden_records + coin_records + emag_records)
+
+/obj/machinery/vending/tgui_assets(mob/user)
+	return list(
+		get_asset_datum(/datum/asset/spritesheet/vending),
+	)
+
+/obj/machinery/vending/tgui_data(mob/user)
+	var/data = list()
+	data["contents"] = list()
+	for(var/datum/data/vending_product/R in get_all_product_records())
+		data["contents"] += list(list(
+			"name" = R.product_name,
+			"amount" = R.amount,
+			"icon" = replacetext(replacetext("[R.product_path]", "[/obj/item]/", ""), "/", "-"),
+			"price" = R.price
+			))
+	data["user"] = "АГА ЩАС"
+
+	return data
 
 /obj/machinery/vending/proc/print_recors(list/record)
 	var/dat
